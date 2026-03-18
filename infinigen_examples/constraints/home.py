@@ -16,6 +16,7 @@ from infinigen.assets.objects import (
     decor,
     elements,
     lamp,
+    mep,
     seating,
     shelves,
     table_decorations,
@@ -672,6 +673,36 @@ def home_furniture_constraints():
         lambda rug: (
             rug.distance(rooms, cu.walltags).maximize(weight=3)
             + cl.angle_alignment_cost(rug, rooms, cu.walltags).minimize(weight=3)
+        )
+    )
+    # endregion
+
+    # region MEP COMPONENTS (syntrAIn Phase 0 spike)
+    # Outlets are wall-mounted at standard NEC heights (30-50cm from floor).
+    # Treated as wall decorations for solver placement, with tighter height constraints.
+    outlets = obj[mep.OutletFactory].related_to(rooms, cu.flush_wall)
+
+    constraints["mep_outlets"] = rooms.all(
+        lambda r: (
+            outlets.related_to(r).count().in_range(2, 5)
+            * outlets.related_to(r).all(
+                lambda o: (
+                    o.distance(r, cu.floortags).in_range(0.3, 0.5)  # NEC standard height
+                    * o.distance(cutters) > 0.15  # away from doors/windows
+                )
+            )
+        )
+    )
+
+    score_terms["mep_outlets"] = rooms.mean(
+        lambda r: (
+            outlets.related_to(r).mean(
+                lambda o: (
+                    o.distance(outlets).maximize(weight=2)  # space outlets apart
+                    + cl.angle_alignment_cost(o, r, cu.floortags).minimize(weight=5)
+                    + o.distance(furniture).maximize(weight=1)  # prefer accessible locations
+                )
+            )
         )
     )
     # endregion

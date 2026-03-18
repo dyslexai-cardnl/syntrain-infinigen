@@ -11,6 +11,7 @@ from infinigen.assets.objects import (
     decor,
     elements,
     lamp,
+    mep,
     seating,
     shelves,
     table_decorations,
@@ -198,6 +199,7 @@ def home_asset_usage():
         wall_decorations.WallArtFactory,
         wall_decorations.MirrorFactory,
         wall_decorations.BalloonFactory,
+        mep.OutletFactory,
     }
 
     used_as[Semantics.Door] = {

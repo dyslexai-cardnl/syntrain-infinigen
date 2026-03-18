@@ -1,0 +1,50 @@
+# syntrAIn Infinigen fork — Docker build
+# Based on the infinigen-blender:latest build pattern
+# BSD 3-Clause License — see LICENSE and NOTICE
+
+FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV BLENDER_VERSION=4.2.3
+ENV BLENDER_URL=https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz
+ENV PATH="/root/miniconda3/bin:/opt/blender:${PATH}"
+
+# System dependencies
+RUN apt-get update && apt-get install -y \
+    cmake g++ git wget unzip vim sudo \
+    libglm-dev libglew-dev libglfw3-dev libgles2-mesa-dev \
+    libxi6 libgconf-2-4 libxkbcommon-x11-0 \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Miniconda
+RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
+    bash /tmp/miniconda.sh -b -p /root/miniconda3 && \
+    rm /tmp/miniconda.sh
+
+# Blender standalone (for Cycles rendering)
+RUN mkdir -p /opt/blender && \
+    wget -q ${BLENDER_URL} -O /tmp/blender.tar.xz && \
+    tar -xf /tmp/blender.tar.xz -C /opt/blender --strip-components=1 && \
+    rm /tmp/blender.tar.xz && \
+    /opt/blender/blender --version
+
+# Infinigen fork
+RUN mkdir -p /opt/infinigen
+WORKDIR /opt/infinigen
+COPY . .
+
+# Python environment
+RUN /root/miniconda3/bin/conda init bash && \
+    . /root/.bashrc && \
+    yes | /root/miniconda3/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main 2>/dev/null || true && \
+    yes | /root/miniconda3/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r 2>/dev/null || true && \
+    /root/miniconda3/bin/conda create --name infinigen python=3.11 -y && \
+    /root/miniconda3/bin/conda run -n infinigen pip install -e ".[dev]"
+
+# Entrypoint activates conda env
+RUN echo '#!/bin/bash\nsource /root/miniconda3/etc/profile.d/conda.sh\nconda activate infinigen\nexec "$@"' > /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["python", "-m", "infinigen_examples.generate_indoors", "--help"]
