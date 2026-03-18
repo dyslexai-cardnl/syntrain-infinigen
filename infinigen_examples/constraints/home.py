@@ -686,10 +686,10 @@ def home_furniture_constraints():
         lambda r: (
             outlets.related_to(r).count().in_range(2, 5)
             * outlets.related_to(r).all(
-                lambda o: (
-                    o.distance(r, cu.floortags).in_range(0.3, 0.5)  # NEC standard height
-                    * o.distance(cutters) > 0.15  # away from doors/windows
-                )
+                lambda o: (o.distance(r, cu.floortags).in_range(0.3, 0.5))
+            )
+            * outlets.related_to(r).all(
+                lambda o: (o.distance(cutters) > 0.15)
             )
         )
     )
