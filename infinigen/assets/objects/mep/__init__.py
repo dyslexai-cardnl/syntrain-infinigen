@@ -2,3 +2,5 @@
 # BSD 3-Clause License — see LICENSE
 
 from .outlet import OutletFactory
+from .switch import LightSwitchFactory
+from .vent import VentRegisterFactory

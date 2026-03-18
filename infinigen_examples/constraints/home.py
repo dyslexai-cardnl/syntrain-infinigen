@@ -677,9 +677,11 @@ def home_furniture_constraints():
     )
     # endregion
 
-    # region MEP COMPONENTS (syntrAIn Phase 0 spike)
-    # Outlets are wall-mounted at standard NEC heights (30-50cm from floor).
-    # Treated as wall decorations for solver placement, with tighter height constraints.
+    # region MEP COMPONENTS (syntrAIn)
+    # Building components placed by constraint solver alongside furniture.
+    # Heights and counts based on NEC/building code requirements.
+
+    # --- Outlets: 30-50cm from floor, 2-5 per room ---
     outlets = obj[mep.OutletFactory].related_to(rooms, cu.flush_wall)
 
     constraints["mep_outlets"] = rooms.all(
@@ -698,9 +700,58 @@ def home_furniture_constraints():
         lambda r: (
             outlets.related_to(r).mean(
                 lambda o: (
-                    o.distance(outlets).maximize(weight=2)  # space outlets apart
+                    o.distance(outlets).maximize(weight=2)
                     + cl.angle_alignment_cost(o, r, cu.floortags).minimize(weight=5)
-                    + o.distance(furniture).maximize(weight=1)  # prefer accessible locations
+                    + o.distance(furniture).maximize(weight=1)
+                )
+            )
+        )
+    )
+
+    # --- Switches: 1.0-1.3m from floor (chest height), 1-3 per room, near doors ---
+    switches = obj[mep.LightSwitchFactory].related_to(rooms, cu.flush_wall)
+    door = obj[Semantics.Door]
+
+    constraints["mep_switches"] = rooms.all(
+        lambda r: (
+            switches.related_to(r).count().in_range(1, 3)
+            * switches.related_to(r).all(
+                lambda s: (s.distance(r, cu.floortags).in_range(1.0, 1.3))
+            )
+        )
+    )
+
+    score_terms["mep_switches"] = rooms.mean(
+        lambda r: (
+            switches.related_to(r).mean(
+                lambda s: (
+                    s.distance(door).minimize(weight=5)  # switches near doors
+                    + s.distance(switches).maximize(weight=2)  # space apart
+                    + cl.angle_alignment_cost(s, r, cu.floortags).minimize(weight=5)
+                )
+            )
+        )
+    )
+
+    # --- Vents: 0.1-0.3m from floor (floor registers), 1-2 per room ---
+    vents = obj[mep.VentRegisterFactory].related_to(rooms, cu.flush_wall)
+
+    constraints["mep_vents"] = rooms.all(
+        lambda r: (
+            vents.related_to(r).count().in_range(1, 2)
+            * vents.related_to(r).all(
+                lambda v: (v.distance(r, cu.floortags).in_range(0.05, 0.3))
+            )
+        )
+    )
+
+    score_terms["mep_vents"] = rooms.mean(
+        lambda r: (
+            vents.related_to(r).mean(
+                lambda v: (
+                    v.distance(furniture).maximize(weight=3)  # don't block vents
+                    + v.distance(vents).maximize(weight=2)
+                    + cl.angle_alignment_cost(v, r, cu.floortags).minimize(weight=5)
                 )
             )
         )

@@ -200,6 +200,8 @@ def home_asset_usage():
         wall_decorations.MirrorFactory,
         wall_decorations.BalloonFactory,
         mep.OutletFactory,
+        mep.LightSwitchFactory,
+        mep.VentRegisterFactory,
     }
 
     used_as[Semantics.Door] = {
