@@ -177,17 +177,31 @@ def render_viewpoint(cam, viewpoint, output_dir, samples, index):
         world_matrix = cam.matrix_world.copy()
         cam.parent = None
         cam.matrix_world = world_matrix
-    for c in cam.constraints:
+    for c in list(cam.constraints):
         cam.constraints.remove(c)
 
     # Position camera
     cam.location = viewpoint["position"]
 
-    # Look at target
-    direction = viewpoint["target"] - viewpoint["position"]
-    rot_z = math.atan2(direction.y, direction.x) - math.pi / 2
-    rot_x = math.asin(max(-1, min(1, -direction.z / direction.length)))
-    cam.rotation_euler = Euler((math.pi / 2 - rot_x, 0, rot_z))
+    # Use Blender's track_to constraint for reliable look-at
+    # Create an empty at the target location
+    target_name = f"_cam_target_{index}"
+    if target_name in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects[target_name], do_unlink=True)
+    bpy.ops.object.empty_add(location=viewpoint["target"])
+    target_empty = bpy.context.active_object
+    target_empty.name = target_name
+
+    constraint = cam.constraints.new(type="TRACK_TO")
+    constraint.target = target_empty
+    constraint.track_axis = "TRACK_NEGATIVE_Z"
+    constraint.up_axis = "UP_Y"
+
+    # Bake the constraint to actual rotation
+    bpy.context.view_layer.update()
+    cam.rotation_euler = cam.matrix_world.to_euler()
+    cam.constraints.remove(constraint)
+    bpy.data.objects.remove(target_empty, do_unlink=True)
 
     # Set lens
     cam.data.lens = LENS_MM
@@ -280,6 +294,16 @@ def main():
         bpy.ops.object.camera_add()
         cam = bpy.context.object
         bpy.context.scene.camera = cam
+
+    # Add fill light at room center to prevent dark renders
+    room_center = room_bounds["center"]
+    bpy.ops.object.light_add(type="AREA", location=room_center)
+    fill_light = bpy.context.active_object
+    fill_light.name = "_mep_fill_light"
+    fill_light.data.energy = 200
+    fill_light.data.size = 3.0
+    fill_light.location.z = room_bounds["max"].z - 0.3  # Near ceiling
+    print(f"Added fill light at {[round(x,1) for x in fill_light.location]}")
 
     # Render
     results = []
