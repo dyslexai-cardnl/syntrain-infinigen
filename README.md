@@ -1,4 +1,40 @@
 
+# syntrAIn-infinigen
+
+**A fork of [Infinigen](https://github.com/princeton-vl/infinigen) that adds procedural MEP (mechanical / electrical / plumbing) fixtures — outlets, light switches, vents — to Infinigen-Indoors scenes, to generate labeled synthetic training data for building-inspection computer-vision models.**
+
+Maintained by [dyslexAI](https://github.com/dyslexai-cardnl). The synthetic scenes produced here are intended to train the detection models in dyslexAI's field-inspection / building-code CV pipeline, where real labeled imagery of in-situ electrical and HVAC fixtures is scarce and expensive to annotate.
+
+## What this fork adds
+
+- **MEP asset factories** (`infinigen/assets/objects/mep/`): `OutletFactory`, `LightSwitchFactory`, `VentRegisterFactory`, plus a generic catalog-driven `TaxonomyAssetFactory` that instantiates any category from a taxonomy definition (a `for_category()` pattern) instead of one hand-written factory per fixture.
+- **Constraint-solver integration** (`infinigen_examples/constraints/`): MEP fixtures are placed by Infinigen's native constraint solver alongside furniture — correct wall mounting, height ranges, per-room counts, clearance from cutters — through semantic-tag registration.
+- **Targeted rendering** (`scripts/render_mep_targeted.py`, `scripts/replace_mep_meshes.py`): camera framing on the placed fixtures and mesh replacement to swap procedural fallbacks for detailed `.blend` models.
+- **Containerized Blender** (`Dockerfile.syntrain`): headless Cycles rendering in a reproducible image.
+
+## Why it's built this way
+
+The integration adds MEP fixtures with **zero changes to the Infinigen solver core** (`annealing.py`, `solve.py`, `moves/`). A Phase-0 spike validated — before any feature work — that registering a factory under a semantic tag (`used_as[Semantics.WallDecoration]`) is enough for the solver to discover and place it. The result is ~1,500 additive lines of factories, constraints, and scripts on top of an unmodified solver, so the fork rebases cleanly on upstream Infinigen.
+
+## Status (honest, mid-build)
+
+- **Phase 0 — integration spike: complete, GO.** The solver places MEP fixtures alongside native objects with correct tags and no solver fork. See [docs/research/phase0-spike-results.md](docs/research/phase0-spike-results.md).
+- **Phase 1 — asset pipeline: in progress.** Factories, the generic taxonomy factory, multi-fixture scene generation, and `.blend` asset extraction all work; the Cycles render path (getting placed fixtures to appear in final renders) is under active, documented debugging. See [docs/sessions/session-2026-03-18-phase1.md](docs/sessions/session-2026-03-18-phase1.md).
+
+This is a working integration with one open rendering issue — not yet a turnkey dataset generator.
+
+## Engineering notes
+
+- [Phase 0 spike results & GO decision](docs/research/phase0-spike-results.md)
+- [Infinigen factory internals (research)](docs/research/infinigen-factory-internals.md)
+- [Phase 1 session log](docs/sessions/session-2026-03-18-phase1.md)
+
+---
+
+## Upstream project: Infinigen
+
+> Everything below is the upstream README from [Princeton Vision & Learning Lab's Infinigen](https://github.com/princeton-vl/infinigen), preserved in full. All Infinigen code is BSD-3-Clause, Copyright (c) 2023 Princeton University. The syntrAIn additions are confined to `infinigen/assets/objects/mep/`, `scripts/render_mep_targeted.py`, `scripts/replace_mep_meshes.py`, the constraint additions in `infinigen_examples/constraints/`, and `Dockerfile.syntrain`.
+
 <div align="center">
 <img src="docs/images/infinigen.png" width="300"></img>
 </div>
